@@ -70,6 +70,7 @@ def enableProguardInReleaseBuilds = false
 def jscFlavor = 'org.webkit:android-jsc:+'
 
 android {
+    namespace "com.faceauthapp"
     compileSdkVersion rootProject.ext.compileSdkVersion
 
     defaultConfig {
@@ -78,6 +79,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+    }
+    
+    aaptOptions {
+        noCompress "tflite"
     }
     ...
 }
