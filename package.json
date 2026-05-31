@@ -10,8 +10,14 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-community/netinfo": "^12.0.1",
+    "axios": "^1.16.1",
     "react": "18.2.0",
-    "react-native": "0.74.0"
+    "react-native": "0.74.0",
+    "react-native-fast-tflite": "^3.0.1",
+    "react-native-quick-sqlite": "^8.2.7",
+    "react-native-vision-camera": "^5.0.11",
+    "react-native-worklets-core": "^1.6.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
