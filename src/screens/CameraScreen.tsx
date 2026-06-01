@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { launchCamera } from 'react-native-image-picker';
 import { FaceRecognizer } from '../models/FaceRecognizer';
+import { DatabaseService } from '../services/DatabaseService';
 
 interface Props {
   mode: 'enroll' | 'authenticate';
@@ -38,7 +39,7 @@ export default function CameraScreen({ mode, userId, onSuccess, onCancel }: Prop
         }
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        setStatus('❌ Camera permission denied — go to Settings and allow camera');
+        setStatus('Camera permission denied');
         return;
       }
     }
@@ -61,21 +62,41 @@ export default function CameraScreen({ mode, userId, onSuccess, onCancel }: Prop
       const base64 = image.base64;
       if (!base64) throw new Error('No image data');
 
+      const embedding = await FaceRecognizer.getEmbedding(base64);
+      if (!embedding) throw new Error('Could not extract face features');
+
+      console.log('Got embedding, length:', embedding.length);
+
       if (mode === 'enroll' && userId) {
-        const embedding = await FaceRecognizer.getEmbedding(base64);
-        if (!embedding) throw new Error('Could not extract face features');
-        console.log(`Enrolled ${userId} with ${embedding.length}-dim embedding`);
-        setStatus('✅ Enrolled successfully!');
+        console.log('Enrolling user:', userId);
+        await DatabaseService.enrollUser(userId, embedding);
+        setStatus('Enrolled successfully!');
         setTimeout(() => onSuccess(userId), 1000);
+
       } else if (mode === 'authenticate') {
-        const embedding = await FaceRecognizer.getEmbedding(base64);
-        if (!embedding) throw new Error('Could not extract face features');
-        console.log(`Got embedding with ${embedding.length} dims`);
-        setStatus('✅ Face processed!');
-        setTimeout(() => onSuccess('user'), 1000);
+        const stored = await DatabaseService.getAllEmbeddings();
+        console.log('Stored embeddings count:', stored.length);
+
+        if (stored.length === 0) {
+          setStatus('No users enrolled yet - enroll first');
+          setProcessing(false);
+          return;
+        }
+
+        const matchedId = await FaceRecognizer.findMatch(embedding, stored);
+        console.log('Match result:', matchedId);
+
+        if (matchedId) {
+          await DatabaseService.logAttendance(matchedId, matchedId);
+          setStatus('Welcome, ' + matchedId + '!');
+          setTimeout(() => onSuccess(matchedId), 1000);
+        } else {
+          setStatus('Face not recognized - try again');
+        }
       }
     } catch (error: any) {
-      setStatus(`❌ ${error.message} — try again`);
+      console.log('Error:', error.message);
+      setStatus('Error: ' + error.message);
     } finally {
       setProcessing(false);
     }
@@ -84,7 +105,7 @@ export default function CameraScreen({ mode, userId, onSuccess, onCancel }: Prop
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        {mode === 'enroll' ? `Enrolling: ${userId}` : 'Authentication'}
+        {mode === 'enroll' ? 'Enrolling: ' + userId : 'Authentication'}
       </Text>
 
       {imageUri ? (

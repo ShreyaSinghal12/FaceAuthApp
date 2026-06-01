@@ -3,6 +3,8 @@ import { SafeAreaView, StyleSheet, ActivityIndicator, View, Text } from 'react-n
 import { loadAllModels } from './src/models/ModelLoader';
 import HomeScreen from './src/screens/HomeScreen';
 import CameraScreen from './src/screens/CameraScreen';
+import { DatabaseService } from './src/services/DatabaseService';
+import { SyncService } from './src/services/SyncService';
 
 type Screen = 'home' | 'enroll' | 'authenticate';
 
@@ -14,9 +16,17 @@ export default function App() {
   const [lastResult, setLastResult] = useState<string | null>(null);
 
   useEffect(() => {
-    loadAllModels()
-      .then(() => setModelsLoaded(true))
-      .catch((err) => setError(err.message));
+    const init = async () => {
+      try {
+        await DatabaseService.init();
+        await loadAllModels();
+        SyncService.startAutoSync();
+        setModelsLoaded(true);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    };
+    init();
   }, []);
 
   // Loading screen
