@@ -6,17 +6,11 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
 class FaceRecognitionPackage : ReactPackage {
-
     override fun createNativeModules(
         reactContext: ReactApplicationContext
-    ): List<NativeModule> {
-        // Register our FaceRecognitionModule here
-        return listOf(FaceRecognitionModule(reactContext))
-    }
+    ): List<NativeModule> = listOf(FaceRecognitionModule(reactContext))
 
     override fun createViewManagers(
         reactContext: ReactApplicationContext
-    ): List<ViewManager<*, *>> {
-        return emptyList()
-    }
+    ): List<ViewManager<*, *>> = emptyList()
 }
