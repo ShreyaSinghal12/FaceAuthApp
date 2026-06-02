@@ -13,6 +13,8 @@ import LivenessScreen from './src/screens/LivenessScreen';
 import { DatabaseService } from './src/services/DatabaseService';
 import { SyncService } from './src/services/SyncService';
 import AttendanceLogScreen from './src/screens/AttendanceLogScreen';
+import EnrollScreen from './src/screens/EnrollScreen';
+import AuthenticateScreen from './src/screens/AuthenticateScreen';
 
 type Screen = 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate' | 'logs';
 
@@ -76,11 +78,9 @@ export default function App() {
 
   if (screen === 'enroll') {
     return (
-      <CameraScreen
-        mode="enroll"
-        userId={enrollUserId}
-        onSuccess={(uid) => {
-          setLastResult('Enrolled: ' + uid);
+      <EnrollScreen
+        onSuccess={(name) => {
+          setLastResult('Enrolled: ' + name);
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
@@ -90,10 +90,9 @@ export default function App() {
 
   if (screen === 'authenticate') {
     return (
-      <CameraScreen
-        mode="authenticate"
-        onSuccess={(uid) => {
-          setLastResult('Welcome, ' + uid + '!');
+      <AuthenticateScreen
+        onSuccess={(name) => {
+          setLastResult('Welcome, ' + name + '!');
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
@@ -112,12 +111,12 @@ export default function App() {
         </View>
       )}
       <HomeScreen
-        onEnroll={(uid) => {
-          setEnrollUserId(uid);
-          setScreen('liveness_enroll');
-        }}
+        onEnroll={() => setScreen('liveness_enroll')}
         onAuthenticate={() => setScreen('liveness_auth')}
         onViewLogs={() => setScreen('logs')}
+        pendingCount={0}
+        enrolledCount={0}
+        todayCount={0}
       />
     </SafeAreaView>
   );

@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { DatabaseService } from '../services/DatabaseService';
+import { SyncService } from '../services/SyncService';
 
 interface Props {
   onBack: () => void;
@@ -24,6 +25,7 @@ interface LogEntry {
 export default function AttendanceLogScreen({ onBack }: Props) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const loadLogs = async () => {
     try {
@@ -44,38 +46,52 @@ export default function AttendanceLogScreen({ onBack }: Props) {
     setRefreshing(false);
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    await SyncService.sync();
+    await loadLogs();
+    setSyncing(false);
+  };
+
+  const getInitials = (name: string): string => {
+    const parts = name.replace(/\(.*\)/, '').trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
   const formatTime = (timestamp: number): string => {
     const date = new Date(timestamp);
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    const time = date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
     });
+    if (isToday) return `Today ${time}`;
+    return `${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} ${time}`;
   };
 
-  const renderItem = ({ item }: { item: LogEntry }) => (
-    <View style={styles.logCard}>
-      <View style={styles.logLeft}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {item.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View>
-          <Text style={styles.logName}>{item.name}</Text>
-          <Text style={styles.logTime}>{formatTime(item.timestamp)}</Text>
-        </View>
+  const avatarColors = ['#3A2B22', '#2E2A3A', '#22302A', '#322A22'];
+  const textColors = ['#C8703C', '#A88BC8', '#5DAE8B', '#D89B5C'];
+
+  const pendingCount = logs.filter(l => !l.synced).length;
+
+  const renderItem = ({ item, index }: { item: LogEntry; index: number }) => (
+    <View style={styles.card}>
+      <View style={[styles.avatar, { backgroundColor: avatarColors[index % 4] }]}>
+        <Text style={[styles.avatarText, { color: textColors[index % 4] }]}>
+          {getInitials(item.name)}
+        </Text>
       </View>
-      <View style={[
-        styles.syncBadge,
-        item.synced ? styles.synced : styles.pending,
-      ]}>
-        <Text style={[
-          styles.syncText,
-          item.synced ? styles.syncedText : styles.pendingText,
-        ]}>
-          {item.synced ? 'Synced' : 'Pending'}
+      <View style={styles.cardContent}>
+        <Text style={styles.cardName}>{item.name.replace(/\(.*\)/, '').trim()}</Text>
+        <Text style={styles.cardTime}>{formatTime(item.timestamp)}</Text>
+      </View>
+      <View style={[styles.pill, item.synced ? styles.syncedPill : styles.pendingPill]}>
+        <Text style={[styles.pillText, item.synced ? styles.syncedText : styles.pendingText]}>
+          {item.synced ? 'synced' : 'pending'}
         </Text>
       </View>
     </View>
@@ -83,40 +99,36 @@ export default function AttendanceLogScreen({ onBack }: Props) {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Back</Text>
+        <TouchableOpacity onPress={onBack}>
+          <Text style={styles.back}>‹ Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Attendance Log</Text>
-        <View style={{ width: 50 }} />
+        <Text style={styles.title}>Records</Text>
+        {pendingCount > 0 ? (
+          <View style={styles.headerBadge}>
+            <Text style={styles.headerBadgeText}>{pendingCount} pending</Text>
+          </View>
+        ) : (
+          <View style={{ width: 70 }} />
+        )}
       </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{logs.length}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>
-            {logs.filter(l => l.synced).length}
-          </Text>
-          <Text style={styles.statLabel}>Synced</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>
-            {logs.filter(l => !l.synced).length}
-          </Text>
-          <Text style={styles.statLabel}>Pending</Text>
-        </View>
-      </View>
+      {/* Sync button */}
+      <TouchableOpacity
+        style={styles.syncButton}
+        onPress={handleSync}
+        disabled={syncing || pendingCount === 0}>
+        <Text style={styles.syncText}>
+          {syncing ? 'Syncing...' : '☁  Sync to server'}
+        </Text>
+      </TouchableOpacity>
 
       {logs.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyText}>No attendance records yet</Text>
-          <Text style={styles.emptySubtext}>
-            Authenticate a user to create the first record
-          </Text>
+          <Text style={styles.emptyIcon}>▤</Text>
+          <Text style={styles.emptyText}>No records yet</Text>
+          <Text style={styles.emptySub}>Mark attendance to create the first record</Text>
         </View>
       ) : (
         <FlatList
@@ -125,11 +137,7 @@ export default function AttendanceLogScreen({ onBack }: Props) {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#1D9E75"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C8703C" />
           }
         />
       )}
@@ -140,113 +148,109 @@ export default function AttendanceLogScreen({ onBack }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#1C1A19',
+    paddingTop: 55,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#222',
+    paddingHorizontal: 22,
+    marginBottom: 16,
   },
-  backButton: {
+  back: {
+    color: '#C8703C',
+    fontSize: 16,
     width: 50,
-  },
-  backText: {
-    color: '#1D9E75',
-    fontSize: 17,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F7F4F0',
   },
-  statsRow: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
+  headerBadge: {
+    backgroundColor: '#C8703C',
     borderRadius: 12,
-    padding: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  headerBadgeText: {
+    fontSize: 11,
+    color: '#412402',
+    fontWeight: '600',
+  },
+  syncButton: {
+    backgroundColor: '#262321',
+    borderWidth: 1,
+    borderColor: '#3A352F',
+    borderRadius: 14,
+    padding: 14,
     alignItems: 'center',
+    marginHorizontal: 22,
+    marginBottom: 16,
   },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1D9E75',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 4,
+  syncText: {
+    color: '#C8703C',
+    fontSize: 14,
+    fontWeight: '600',
   },
   list: {
-    padding: 16,
-    gap: 10,
+    paddingHorizontal: 22,
+    paddingBottom: 22,
   },
-  logCard: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: '#262321',
+    borderRadius: 14,
+    padding: 12,
     marginBottom: 10,
   },
-  logLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1D9E75',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    color: '#fff',
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '600',
   },
-  logName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+  cardContent: {
+    flex: 1,
+    marginLeft: 12,
   },
-  logTime: {
-    color: '#888',
-    fontSize: 13,
+  cardName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#F7F4F0',
+  },
+  cardTime: {
+    fontSize: 12,
+    color: '#6B645C',
     marginTop: 2,
   },
-  syncBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-  synced: {
-    backgroundColor: '#0F3D2E',
+  pendingPill: {
+    backgroundColor: '#C8703C',
   },
-  pending: {
-    backgroundColor: '#3D2E0F',
+  syncedPill: {
+    backgroundColor: '#5DAE8B',
   },
-  syncText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  syncedText: {
-    color: '#1D9E75',
+  pillText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   pendingText: {
-    color: '#E0A82E',
+    color: '#412402',
+  },
+  syncedText: {
+    color: '#15201A',
   },
   empty: {
     flex: 1,
@@ -255,17 +259,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyIcon: {
-    fontSize: 60,
-    marginBottom: 8,
+    fontSize: 50,
+    color: '#3A352F',
   },
   emptyText: {
-    color: '#fff',
-    fontSize: 18,
+    color: '#F7F4F0',
+    fontSize: 17,
     fontWeight: '500',
   },
-  emptySubtext: {
-    color: '#666',
-    fontSize: 14,
+  emptySub: {
+    color: '#6B645C',
+    fontSize: 13,
     textAlign: 'center',
     paddingHorizontal: 40,
   },
