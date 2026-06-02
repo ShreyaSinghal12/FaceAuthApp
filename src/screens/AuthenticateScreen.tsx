@@ -55,8 +55,12 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
       const base64 = image.base64;
       if (!base64) throw new Error('No image data');
 
+      const startTime = Date.now();
+
       const embedding = await FaceRecognizer.getEmbedding(base64);
       if (!embedding) throw new Error('Could not extract face features');
+
+      const embeddingTime = Date.now() - startTime;
 
       const stored = await DatabaseService.getAllEmbeddings();
       if (stored.length === 0) {
@@ -65,7 +69,7 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
         return;
       }
 
-      // Find best match and confidence
+      const matchStart = Date.now();
       let bestScore = 0;
       let bestUser: string | null = null;
       for (const s of stored) {
@@ -75,6 +79,13 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
           bestUser = s.userId;
         }
       }
+      const matchTime = Date.now() - matchStart;
+      const totalTime = Date.now() - startTime;
+
+      console.log('BENCHMARK - Embedding:', embeddingTime, 'ms');
+      console.log('BENCHMARK - Matching:', matchTime, 'ms');
+      console.log('BENCHMARK - Total:', totalTime, 'ms');
+      console.log('BENCHMARK - Enrolled users:', stored.length);
 
       const confidencePercent = Math.round(bestScore * 100 * 10) / 10;
       setConfidence(confidencePercent);
@@ -102,7 +113,6 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onCancel}>
           <Text style={styles.back}>‹ Back</Text>
@@ -111,13 +121,11 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
         <View style={{ width: 50 }} />
       </View>
 
-      {/* Liveness check banner */}
       <View style={styles.banner}>
-        <Text style={styles.bannerTitle}>👁  Liveness verified</Text>
+        <Text style={styles.bannerTitle}>Liveness verified</Text>
         <Text style={styles.bannerSub}>Anti-spoofing check passed</Text>
       </View>
 
-      {/* Face preview */}
       <View style={styles.faceBox}>
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -131,7 +139,6 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
         </Text>
       </View>
 
-      {/* Match result with confidence */}
       {matchedName && (
         <View style={styles.matchCard}>
           <Text style={styles.matchName}>{matchedName}</Text>
@@ -144,18 +151,17 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
 
       {status ? <Text style={styles.status}>{status}</Text> : null}
 
-      {/* Action button */}
       {processing ? (
         <View style={styles.processingBox}>
           <ActivityIndicator color="#5DAE8B" />
         </View>
       ) : matchedName ? (
         <TouchableOpacity style={styles.confirmButton} onPress={confirmAttendance}>
-          <Text style={styles.confirmText}>✓  Confirm attendance</Text>
+          <Text style={styles.confirmText}>Confirm attendance</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity style={styles.scanButton} onPress={captureAndMatch}>
-          <Text style={styles.scanText}>📷  Scan face</Text>
+          <Text style={styles.scanText}>Scan face</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -175,16 +181,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  back: {
-    color: '#C8703C',
-    fontSize: 16,
-    width: 50,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F7F4F0',
-  },
+  back: { color: '#C8703C', fontSize: 16, width: 50 },
+  title: { fontSize: 18, fontWeight: '600', color: '#F7F4F0' },
   banner: {
     backgroundColor: '#262321',
     borderWidth: 1,
@@ -194,16 +192,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  bannerTitle: {
-    fontSize: 14,
-    color: '#C8703C',
-    fontWeight: '600',
-  },
-  bannerSub: {
-    fontSize: 12,
-    color: '#8B847C',
-    marginTop: 2,
-  },
+  bannerTitle: { fontSize: 14, color: '#C8703C', fontWeight: '600' },
+  bannerSub: { fontSize: 12, color: '#8B847C', marginTop: 2 },
   faceBox: {
     backgroundColor: '#161413',
     borderRadius: 18,
@@ -221,10 +211,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  faceIcon: {
-    fontSize: 44,
-    color: '#5A544C',
-  },
+  faceIcon: { fontSize: 44, color: '#5A544C' },
   previewImage: {
     width: 100,
     height: 120,
@@ -232,11 +219,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#5DAE8B',
   },
-  faceStatus: {
-    fontSize: 13,
-    color: '#5DAE8B',
-    marginTop: 10,
-  },
+  faceStatus: { fontSize: 13, color: '#5DAE8B', marginTop: 10 },
   matchCard: {
     backgroundColor: '#1E2620',
     borderWidth: 1,
@@ -246,16 +229,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  matchName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#5DAE8B',
-  },
-  matchConfidence: {
-    fontSize: 13,
-    color: '#8B847C',
-    marginVertical: 6,
-  },
+  matchName: { fontSize: 18, fontWeight: '600', color: '#5DAE8B' },
+  matchConfidence: { fontSize: 13, color: '#8B847C', marginVertical: 6 },
   confidenceTrack: {
     width: '100%',
     height: 6,
@@ -263,41 +238,21 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     overflow: 'hidden',
   },
-  confidenceFill: {
-    height: '100%',
-    backgroundColor: '#5DAE8B',
-    borderRadius: 3,
-  },
-  status: {
-    color: '#C8703C',
-    fontSize: 14,
-    textAlign: 'center',
-    marginVertical: 10,
-  },
+  confidenceFill: { height: '100%', backgroundColor: '#5DAE8B', borderRadius: 3 },
+  status: { color: '#C8703C', fontSize: 14, textAlign: 'center', marginVertical: 10 },
   scanButton: {
     backgroundColor: '#C8703C',
     borderRadius: 24,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  scanText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  scanText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   confirmButton: {
     backgroundColor: '#5DAE8B',
     borderRadius: 24,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  confirmText: {
-    color: '#15201A',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  processingBox: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
+  confirmText: { color: '#15201A', fontSize: 16, fontWeight: '600' },
+  processingBox: { alignItems: 'center', paddingVertical: 16 },
 });
