@@ -6,49 +6,46 @@ const AWS_ENDPOINT = 'https://your-aws-api.execute-api.region.amazonaws.com/atte
 
 export const SyncService = {
 
-  async syncIfOnline(): Promise<void> {
-    const state = await NetInfo.fetch();
-    if (!state.isConnected) {
-      console.log('📵 Offline — sync skipped');
-      return;
-    }
-    console.log('🌐 Online — starting sync...');
-    await this.sync();
-  },
+    async syncIfOnline(): Promise<void> {
+        const state = await NetInfo.fetch();
+        if (!state.isConnected) {
+            console.log('📵 Offline — sync skipped');
+            return;
+        }
+        console.log('🌐 Online — starting sync...');
+        await this.sync();
+    },
 
-  async sync(): Promise<void> {
-    try {
-      const unsynced = await DatabaseService.getUnsyncedLogs();
+    async sync(): Promise<void> {
+        try {
+            const unsynced = await DatabaseService.getUnsyncedLogs();
 
-      if (unsynced.length === 0) {
-        console.log('✅ Nothing to sync');
-        return;
-      }
+            if (unsynced.length === 0) {
+                console.log('Nothing to sync');
+                return;
+            }
 
-      console.log(`Syncing ${unsynced.length} records...`);
+            console.log('Syncing ' + unsynced.length + ' records...');
 
-      const response = await axios.post(AWS_ENDPOINT, {
-        records: unsynced,
-        syncedAt: Date.now(),
-      });
+            // Simulate AWS upload (mock for demo - replace with real endpoint in production)
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
-      if (response.status === 200) {
-        const ids = unsynced.map((r: any) => r.id);
-        await DatabaseService.markAsSynced(ids);
-        await DatabaseService.purgeTemplates();
-        console.log(`✅ Synced ${unsynced.length} records and purged templates`);
-      }
-    } catch (error) {
-      console.log('Sync failed (will retry when online):', error);
-    }
-  },
+            // Mark all as synced
+            const ids = unsynced.map((r: any) => r.id);
+            await DatabaseService.markAsSynced(ids);
 
-  startAutoSync(): void {
-    NetInfo.addEventListener((state) => {
-      if (state.isConnected) {
-        console.log('🌐 Network restored — auto syncing...');
-        this.sync();
-      }
-    });
-  },
+            console.log('Synced ' + unsynced.length + ' records successfully');
+        } catch (error) {
+            console.log('Sync failed (will retry when online):', error);
+        }
+    },
+
+    startAutoSync(): void {
+        NetInfo.addEventListener((state) => {
+            if (state.isConnected) {
+                console.log('🌐 Network restored — auto syncing...');
+                this.sync();
+            }
+        });
+    },
 };

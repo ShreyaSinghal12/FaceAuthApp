@@ -12,8 +12,9 @@ import CameraScreen from './src/screens/CameraScreen';
 import LivenessScreen from './src/screens/LivenessScreen';
 import { DatabaseService } from './src/services/DatabaseService';
 import { SyncService } from './src/services/SyncService';
+import AttendanceLogScreen from './src/screens/AttendanceLogScreen';
 
-type Screen = 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate';
+type Screen = 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate' | 'logs';
 
 export default function App() {
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -99,6 +100,9 @@ export default function App() {
       />
     );
   }
+  if (screen === 'logs') {
+    return <AttendanceLogScreen onBack={() => setScreen('home')} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -113,6 +117,7 @@ export default function App() {
           setScreen('liveness_enroll');
         }}
         onAuthenticate={() => setScreen('liveness_auth')}
+        onViewLogs={() => setScreen('logs')}
       />
     </SafeAreaView>
   );

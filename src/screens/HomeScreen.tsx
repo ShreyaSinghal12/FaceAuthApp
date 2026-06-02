@@ -10,9 +10,10 @@ import {
 interface Props {
   onEnroll: (userId: string) => void;
   onAuthenticate: () => void;
+  onViewLogs: () => void;
 }
 
-export default function HomeScreen({ onEnroll, onAuthenticate }: Props) {
+export default function HomeScreen({ onEnroll, onAuthenticate, onViewLogs }: Props) {
   const [userId, setUserId] = useState('');
   const [showEnrollInput, setShowEnrollInput] = useState(false);
 
@@ -27,7 +28,7 @@ export default function HomeScreen({ onEnroll, onAuthenticate }: Props) {
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={onAuthenticate}>
-          <Text style={styles.primaryButtonText}>🔓 Authenticate</Text>
+          <Text style={styles.primaryButtonText}>Authenticate</Text>
         </TouchableOpacity>
 
         {/* Enroll button */}
@@ -67,9 +68,16 @@ export default function HomeScreen({ onEnroll, onAuthenticate }: Props) {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* View Attendance Log button - always visible */}
+        <TouchableOpacity
+          style={styles.logsButton}
+          onPress={onViewLogs}>
+          <Text style={styles.logsButtonText}>View Attendance Log</Text>
+        </TouchableOpacity>
       </View>
 
-      <Text style={styles.footer}>100% offline · No internet required</Text>
+      <Text style={styles.footer}>100% offline - No internet required</Text>
     </View>
   );
 }
@@ -149,6 +157,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     paddingVertical: 8,
+  },
+  logsButton: {
+    borderWidth: 1,
+    borderColor: '#333',
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  logsButtonText: {
+    color: '#aaa',
+    fontSize: 17,
   },
   footer: {
     position: 'absolute',
