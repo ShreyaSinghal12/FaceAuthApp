@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, ActivityIndicator, View, Text } from 'react-native';
+import {
+  SafeAreaView,
+  StyleSheet,
+  ActivityIndicator,
+  View,
+  Text,
+} from 'react-native';
 import { loadAllModels } from './src/models/ModelLoader';
 import HomeScreen from './src/screens/HomeScreen';
 import CameraScreen from './src/screens/CameraScreen';
+import LivenessScreen from './src/screens/LivenessScreen';
 import { DatabaseService } from './src/services/DatabaseService';
 import { SyncService } from './src/services/SyncService';
 
-type Screen = 'home' | 'enroll' | 'authenticate';
+type Screen = 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate';
 
 export default function App() {
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -29,7 +36,6 @@ export default function App() {
     init();
   }, []);
 
-  // Loading screen
   if (!modelsLoaded && !error) {
     return (
       <View style={styles.loading}>
@@ -39,23 +45,41 @@ export default function App() {
     );
   }
 
-  // Error screen
   if (error) {
     return (
       <View style={styles.loading}>
-        <Text style={styles.errorText}>❌ {error}</Text>
+        <Text style={styles.errorText}>Error: {error}</Text>
       </View>
     );
   }
 
-  // Camera screens
+  // Liveness check before enrollment
+  if (screen === 'liveness_enroll') {
+    return (
+      <LivenessScreen
+        onPassed={() => setScreen('enroll')}
+        onFailed={() => setScreen('home')}
+      />
+    );
+  }
+
+  // Liveness check before authentication
+  if (screen === 'liveness_auth') {
+    return (
+      <LivenessScreen
+        onPassed={() => setScreen('authenticate')}
+        onFailed={() => setScreen('home')}
+      />
+    );
+  }
+
   if (screen === 'enroll') {
     return (
       <CameraScreen
         mode="enroll"
         userId={enrollUserId}
         onSuccess={(uid) => {
-          setLastResult(`✅ ${uid} enrolled`);
+          setLastResult('Enrolled: ' + uid);
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
@@ -68,7 +92,7 @@ export default function App() {
       <CameraScreen
         mode="authenticate"
         onSuccess={(uid) => {
-          setLastResult(`✅ Welcome, ${uid}!`);
+          setLastResult('Welcome, ' + uid + '!');
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
@@ -76,7 +100,6 @@ export default function App() {
     );
   }
 
-  // Home screen
   return (
     <SafeAreaView style={styles.container}>
       {lastResult && (
@@ -87,9 +110,9 @@ export default function App() {
       <HomeScreen
         onEnroll={(uid) => {
           setEnrollUserId(uid);
-          setScreen('enroll');
+          setScreen('liveness_enroll');
         }}
-        onAuthenticate={() => setScreen('authenticate')}
+        onAuthenticate={() => setScreen('liveness_auth')}
       />
     </SafeAreaView>
   );

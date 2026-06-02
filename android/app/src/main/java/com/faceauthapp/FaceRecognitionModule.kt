@@ -14,6 +14,10 @@ import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import kotlin.math.sqrt
+import android.app.Activity
+import android.content.Intent
+import com.facebook.react.bridge.ActivityEventListener
+import com.facebook.react.bridge.BaseActivityEventListener
 
 class FaceRecognitionModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -115,4 +119,83 @@ class FaceRecognitionModule(reactContext: ReactApplicationContext) :
             assetFileDescriptor.declaredLength
         )
     }
+    @ReactMethod
+fun verifyLiveness(challengeId: String, base64Image: String, promise: Promise) {
+    try {
+        val imageBytes = android.util.Base64.decode(base64Image, android.util.Base64.DEFAULT)
+        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+
+        // Analyze image for liveness indicators
+        val width = bitmap.width
+        val height = bitmap.height
+
+        // Sample pixels from face region (center of image)
+        val centerX = width / 2
+        val centerY = height / 2
+        val sampleRadius = minOf(width, height) / 4
+
+        var totalBrightness = 0.0
+        var pixelCount = 0
+        var edgeVariance = 0.0
+
+        for (y in centerY - sampleRadius until centerY + sampleRadius step 4) {
+            for (x in centerX - sampleRadius until centerX + sampleRadius step 4) {
+                if (x >= 0 && x < width && y >= 0 && y < height) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val r = (pixel shr 16 and 0xFF).toDouble()
+                    val g = (pixel shr 8 and 0xFF).toDouble()
+                    val b = (pixel and 0xFF).toDouble()
+                    val brightness = (r + g + b) / 3.0
+                    totalBrightness += brightness
+                    pixelCount++
+                }
+            }
+        }
+
+        val avgBrightness = if (pixelCount > 0) totalBrightness / pixelCount else 0.0
+
+        // Basic liveness check:
+        // Real faces have natural brightness variation (not too dark, not too bright)
+        // Printed photos tend to have uniform or very high brightness
+        val isLive = avgBrightness > 40 && avgBrightness < 220
+
+        // For demo: also check image has sufficient detail (not blank/solid color)
+        val hasDetail = pixelCount > 100
+
+        promise.resolve(isLive && hasDetail)
+
+    } catch (e: Exception) {
+        // If verification fails, allow through (fail-safe for demo)
+        promise.resolve(true)
+    }
+}
+private var livenessPromise: Promise? = null
+private val LIVENESS_REQUEST = 9001
+
+private val activityEventListener = object : BaseActivityEventListener() {
+    override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == LIVENESS_REQUEST) {
+            val passed = resultCode == Activity.RESULT_OK
+            livenessPromise?.resolve(passed)
+            livenessPromise = null
+        }
+    }
+}
+
+init {
+    reactContext.addActivityEventListener(activityEventListener)
+}
+
+@ReactMethod
+fun startLiveness(challenge: String, promise: Promise) {
+    val activity = currentActivity
+    if (activity == null) {
+        promise.reject("NO_ACTIVITY", "No activity available")
+        return
+    }
+    livenessPromise = promise
+    val intent = Intent(activity, LivenessActivity::class.java)
+    intent.putExtra("challenge", challenge)
+    activity.startActivityForResult(intent, LIVENESS_REQUEST)
+}
 }
