@@ -1,51 +1,79 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
-  ActivityIndicator,
   View,
   Text,
 } from 'react-native';
 import { loadAllModels } from './src/models/ModelLoader';
 import HomeScreen from './src/screens/HomeScreen';
-import CameraScreen from './src/screens/CameraScreen';
 import LivenessScreen from './src/screens/LivenessScreen';
 import { DatabaseService } from './src/services/DatabaseService';
 import { SyncService } from './src/services/SyncService';
 import AttendanceLogScreen from './src/screens/AttendanceLogScreen';
 import EnrollScreen from './src/screens/EnrollScreen';
 import AuthenticateScreen from './src/screens/AuthenticateScreen';
+import SplashScreen from './src/screens/SplashScreen';
 
-type Screen = 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate' | 'logs';
+type Screen = 'splash' | 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate' | 'logs';
 
 export default function App() {
-  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelsReady, setModelsReady] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [screen, setScreen] = useState<Screen>('home');
-  const [enrollUserId, setEnrollUserId] = useState('');
+  const [screen, setScreen] = useState<Screen>('splash');
   const [lastResult, setLastResult] = useState<string | null>(null);
 
+  const [pendingCount, setPendingCount] = useState(0);
+  const [enrolledCount, setEnrolledCount] = useState(0);
+  const [todayCount, setTodayCount] = useState(0);
+
+  const refreshCounts = useCallback(async () => {
+    try {
+      const enrolled = await DatabaseService.getEnrolledCount();
+      const pending = await DatabaseService.getPendingCount();
+      const today = await DatabaseService.getTodayCount();
+      setEnrolledCount(enrolled);
+      setPendingCount(pending);
+      setTodayCount(today);
+    } catch (e) {
+      console.log('Count fetch error:', e);
+    }
+  }, []);
+
+  // Load models in background while splash plays
   useEffect(() => {
     const init = async () => {
       try {
         await DatabaseService.init();
         await loadAllModels();
         SyncService.startAutoSync();
-        setModelsLoaded(true);
+        await refreshCounts();
+        setModelsReady(true);
       } catch (err: any) {
         setError(err.message);
+        setModelsReady(true); // still finish splash even on error
       }
     };
     init();
   }, []);
 
-  if (!modelsLoaded && !error) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#1D9E75" />
-        <Text style={styles.loadingText}>Loading ML models...</Text>
-      </View>
-    );
+  // Go to home only when BOTH splash animation done AND models loaded
+  const handleSplashFinish = () => {
+    setSplashDone(true);
+    if (modelsReady) setScreen('home');
+  };
+
+  useEffect(() => {
+    if (modelsReady && splashDone) setScreen('home');
+  }, [modelsReady, splashDone]);
+
+  useEffect(() => {
+    if (screen === 'home') refreshCounts();
+  }, [screen]);
+
+  if (screen === 'splash') {
+    return <SplashScreen onFinish={handleSplashFinish} />;
   }
 
   if (error) {
@@ -56,7 +84,6 @@ export default function App() {
     );
   }
 
-  // Liveness check before enrollment
   if (screen === 'liveness_enroll') {
     return (
       <LivenessScreen
@@ -66,7 +93,6 @@ export default function App() {
     );
   }
 
-  // Liveness check before authentication
   if (screen === 'liveness_auth') {
     return (
       <LivenessScreen
@@ -80,7 +106,7 @@ export default function App() {
     return (
       <EnrollScreen
         onSuccess={(name) => {
-          setLastResult('Enrolled: ' + name);
+          setLastResult(`✓ ${name} enrolled successfully`);
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
@@ -91,14 +117,15 @@ export default function App() {
   if (screen === 'authenticate') {
     return (
       <AuthenticateScreen
-        onSuccess={(name) => {
-          setLastResult('Welcome, ' + name + '!');
+        onSuccess={(msg) => {
+          setLastResult(msg); // msg already contains "Checked IN" or "Checked OUT"
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
       />
     );
   }
+
   if (screen === 'logs') {
     return <AttendanceLogScreen onBack={() => setScreen('home')} />;
   }
@@ -106,17 +133,20 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       {lastResult && (
-        <View style={styles.resultBanner}>
+        <View style={[
+          styles.resultBanner,
+          lastResult.includes('OUT') ? styles.bannerOut : styles.bannerIn
+        ]}>
           <Text style={styles.resultText}>{lastResult}</Text>
         </View>
       )}
       <HomeScreen
-        onEnroll={() => setScreen('liveness_enroll')}
-        onAuthenticate={() => setScreen('liveness_auth')}
+        onEnroll={() => { setLastResult(null); setScreen('liveness_enroll'); }}
+        onAuthenticate={() => { setLastResult(null); setScreen('liveness_auth'); }}
         onViewLogs={() => setScreen('logs')}
-        pendingCount={0}
-        enrolledCount={0}
-        todayCount={0}
+        pendingCount={pendingCount}
+        enrolledCount={enrolledCount}
+        todayCount={todayCount}
       />
     </SafeAreaView>
   );
@@ -129,14 +159,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
   },
-  loadingText: { color: '#888', fontSize: 14 },
   errorText: { color: '#FF6B6B', fontSize: 14, textAlign: 'center', padding: 20 },
   resultBanner: {
-    backgroundColor: '#0F3D2E',
-    padding: 12,
+    padding: 14,
     alignItems: 'center',
   },
-  resultText: { color: '#1D9E75', fontSize: 14, fontWeight: '500' },
+  bannerIn: { backgroundColor: '#0F3D2E' },
+  bannerOut: { backgroundColor: '#2A1A0E' },
+  resultText: { color: '#F7F4F0', fontSize: 14, fontWeight: '500' },
 });

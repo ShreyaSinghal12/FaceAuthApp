@@ -25,11 +25,13 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
   const [empId, setEmpId] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+  const [statusType, setStatusType] = useState<'error' | 'success' | 'info'>('info');
   const [processing, setProcessing] = useState(false);
 
   const captureAndEnroll = async () => {
     if (!name.trim()) {
       setStatus('Please enter a worker name');
+      setStatusType('error');
       return;
     }
 
@@ -39,6 +41,7 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
         setStatus('Camera permission denied');
+        setStatusType('error');
         return;
       }
     }
@@ -56,25 +59,52 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
     setImageUri(image.uri || null);
     setProcessing(true);
     setStatus('Processing face...');
+    setStatusType('info');
 
     try {
       const base64 = image.base64;
       if (!base64) throw new Error('No image data');
 
+      // Step 1: Extract face embedding
       const embedding = await FaceRecognizer.getEmbedding(base64);
       if (!embedding) throw new Error('Could not extract face features');
 
-      const userId = empId.trim() ? `${name.trim()} (${empId.trim()})` : name.trim();
+      // ── Step 2: DUPLICATE CHECK ──────────────────────────────────────────
+      // Compare new face against all enrolled faces before saving
+      setStatus('Checking for duplicates...');
+      const duplicateName = await DatabaseService.findDuplicateFace(embedding);
+      if (duplicateName) {
+        // Same face already enrolled under a different name — reject!
+        setStatus(`Already enrolled as "${duplicateName}". Cannot enroll again.`);
+        setStatusType('error');
+        setProcessing(false);
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // Step 3: No duplicate — safe to enroll
+      const userId = empId.trim()
+        ? `${name.trim()} (${empId.trim()})`
+        : name.trim();
+
       await DatabaseService.enrollUser(userId, embedding);
 
       setStatus('Enrolled successfully!');
+      setStatusType('success');
       setTimeout(() => onSuccess(name.trim()), 1000);
+
     } catch (error: any) {
       setStatus('Error: ' + error.message);
+      setStatusType('error');
     } finally {
       setProcessing(false);
     }
   };
+
+  const statusColor =
+    statusType === 'error' ? '#FF6B6B' :
+    statusType === 'success' ? '#1D9E75' :
+    '#C8703C';
 
   return (
     <View style={styles.container}>
@@ -82,7 +112,7 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onCancel}>
-            <Text style={styles.back}>‹ Back</Text>
+            <Text style={styles.back}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Enroll worker</Text>
           <View style={{ width: 50 }} />
@@ -94,7 +124,7 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           ) : (
             <View style={styles.faceCircle}>
-              <Text style={styles.faceIcon}>◯</Text>
+              <Text style={styles.faceIcon}>🙂</Text>
             </View>
           )}
           <Text style={styles.captureHint}>
@@ -127,7 +157,10 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
           />
         </View>
 
-        {status ? <Text style={styles.status}>{status}</Text> : null}
+        {/* Status message */}
+        {status ? (
+          <Text style={[styles.status, { color: statusColor }]}>{status}</Text>
+        ) : null}
 
         {/* Capture button */}
         {processing ? (
@@ -137,7 +170,7 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
           </View>
         ) : (
           <TouchableOpacity style={styles.button} onPress={captureAndEnroll}>
-            <Text style={styles.buttonText}>📷  Capture & enroll</Text>
+            <Text style={styles.buttonText}>📸  Capture & enroll</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -146,30 +179,16 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1C1A19',
-  },
-  scroll: {
-    padding: 22,
-    paddingTop: 55,
-  },
+  container: { flex: 1, backgroundColor: '#1C1A19' },
+  scroll: { padding: 22, paddingTop: 55 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  back: {
-    color: '#C8703C',
-    fontSize: 16,
-    width: 50,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F7F4F0',
-  },
+  back: { color: '#C8703C', fontSize: 16, width: 50 },
+  title: { fontSize: 18, fontWeight: '600', color: '#F7F4F0' },
   captureBox: {
     backgroundColor: '#161413',
     borderRadius: 18,
@@ -190,10 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  faceIcon: {
-    fontSize: 50,
-    color: '#5A544C',
-  },
+  faceIcon: { fontSize: 50 },
   previewImage: {
     width: 110,
     height: 140,
@@ -201,33 +217,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#C8703C',
   },
-  captureHint: {
-    fontSize: 13,
-    color: '#8B847C',
-    marginTop: 12,
-  },
+  captureHint: { fontSize: 13, color: '#8B847C', marginTop: 12 },
   inputBox: {
     backgroundColor: '#262321',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
   },
-  inputLabel: {
-    fontSize: 11,
-    color: '#6B645C',
-    marginBottom: 4,
-  },
-  input: {
-    fontSize: 16,
-    color: '#F7F4F0',
-    padding: 0,
-  },
-  status: {
-    color: '#C8703C',
-    fontSize: 14,
-    textAlign: 'center',
-    marginVertical: 10,
-  },
+  inputLabel: { fontSize: 11, color: '#6B645C', marginBottom: 4 },
+  input: { fontSize: 16, color: '#F7F4F0', padding: 0 },
+  status: { fontSize: 14, textAlign: 'center', marginVertical: 10 },
   button: {
     backgroundColor: '#C8703C',
     borderRadius: 24,
@@ -235,11 +234,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   processingBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -247,8 +242,5 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 20,
   },
-  processingText: {
-    color: '#8B847C',
-    fontSize: 14,
-  },
+  processingText: { color: '#8B847C', fontSize: 14 },
 });
