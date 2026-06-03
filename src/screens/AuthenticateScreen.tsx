@@ -24,6 +24,7 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
   const [processing, setProcessing] = useState(false);
   const [matchedName, setMatchedName] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<number>(0);
+  const [todayStatus, setTodayStatus] = useState<'none' | 'in' | 'out'>('none');
 
   const captureAndMatch = async () => {
     if (Platform.OS === 'android') {
@@ -93,6 +94,17 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
       if (bestUser && bestScore >= 0.4) {
         setMatchedName(bestUser);
         setStatus('');
+        // Check today's attendance status
+        const records = await DatabaseService.getAttendanceForUser(bestUser);
+        const today = new Date().toISOString().split('T')[0];
+        const todayRec = records.find((r: any) => r.date === today);
+        if (!todayRec) {
+          setTodayStatus('none');
+        } else if (todayRec.check_out) {
+          setTodayStatus('out');
+        } else {
+          setTodayStatus('in');
+        }
       } else {
         setStatus('Face not recognized');
         setMatchedName(null);
@@ -106,8 +118,12 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
 
   const confirmAttendance = async () => {
     if (matchedName) {
-      await DatabaseService.logAttendance(matchedName, matchedName);
-      onSuccess(matchedName);
+      const result = await DatabaseService.markAttendance(matchedName);
+      if (result === 'checkin') {
+        onSuccess(`Welcome, ${matchedName} — Checked IN`);
+      } else {
+        onSuccess(`Goodbye, ${matchedName} — Checked OUT`);
+      }
     }
   };
 
@@ -146,6 +162,11 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
           <View style={styles.confidenceTrack}>
             <View style={[styles.confidenceFill, { width: `${Math.min(confidence, 100)}%` }]} />
           </View>
+          <Text style={styles.actionHint}>
+            {todayStatus === 'none' && 'Tap to check IN'}
+            {todayStatus === 'in' && 'Tap to check OUT'}
+            {todayStatus === 'out' && 'Already checked out today'}
+          </Text>
         </View>
       )}
 
@@ -156,9 +177,17 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
           <ActivityIndicator color="#5DAE8B" />
         </View>
       ) : matchedName ? (
-        <TouchableOpacity style={styles.confirmButton} onPress={confirmAttendance}>
-          <Text style={styles.confirmText}>Confirm attendance</Text>
-        </TouchableOpacity>
+        todayStatus === 'out' ? (
+          <TouchableOpacity style={styles.scanButton} onPress={onCancel}>
+            <Text style={styles.scanText}>Done</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.confirmButton} onPress={confirmAttendance}>
+            <Text style={styles.confirmText}>
+              {todayStatus === 'none' ? 'Check IN' : 'Check OUT'}
+            </Text>
+          </TouchableOpacity>
+        )
       ) : (
         <TouchableOpacity style={styles.scanButton} onPress={captureAndMatch}>
           <Text style={styles.scanText}>Scan face</Text>
@@ -239,6 +268,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   confidenceFill: { height: '100%', backgroundColor: '#5DAE8B', borderRadius: 3 },
+  actionHint: {
+    fontSize: 13,
+    color: '#C8703C',
+    marginTop: 10,
+    fontWeight: '500',
+  },
   status: { color: '#C8703C', fontSize: 14, textAlign: 'center', marginVertical: 10 },
   scanButton: {
     backgroundColor: '#C8703C',

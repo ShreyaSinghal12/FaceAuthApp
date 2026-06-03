@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  RefreshControl,
 } from 'react-native';
 import { DatabaseService } from '../services/DatabaseService';
 import { SyncService } from '../services/SyncService';
@@ -14,92 +13,129 @@ interface Props {
   onBack: () => void;
 }
 
-interface LogEntry {
-  id: number;
-  user_id: string;
-  name: string;
-  timestamp: number;
+interface Person {
+  userId: string;
+  enrolledAt: number;
+  dayCount: number;
+}
+
+interface DayRecord {
+  date: string;
+  check_in: number;
+  check_out: number | null;
   synced: number;
 }
 
 export default function AttendanceLogScreen({ onBack }: Props) {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [records, setRecords] = useState<DayRecord[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
-  const loadLogs = async () => {
-    try {
-      const records = await DatabaseService.getAttendanceLogs();
-      setLogs(records);
-    } catch (error) {
-      console.log('Error loading logs:', error);
+  const cleanName = (id: string) => id.replace(/\(.*\)/, '').trim();
+
+  const loadPeople = async () => {
+    const users = await DatabaseService.getEnrolledUsers();
+    const withCounts: Person[] = [];
+    for (const u of users) {
+      const count = await DatabaseService.getAttendanceCount(u.userId);
+      withCounts.push({ userId: u.userId, enrolledAt: u.enrolledAt, dayCount: count });
     }
+    setPeople(withCounts);
+    setPendingCount(await DatabaseService.getUnsyncedCount());
+  };
+
+  const loadRecords = async (userId: string) => {
+    const recs = await DatabaseService.getAttendanceForUser(userId);
+    setRecords(recs);
+    setSelected(userId);
   };
 
   useEffect(() => {
-    loadLogs();
+    loadPeople();
   }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadLogs();
-    setRefreshing(false);
-  };
 
   const handleSync = async () => {
     setSyncing(true);
-    await SyncService.sync();
-    await loadLogs();
+    await DatabaseService.syncAll();
+    await loadPeople();
     setSyncing(false);
   };
 
   const getInitials = (name: string): string => {
-    const parts = name.replace(/\(.*\)/, '').trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
+    const parts = cleanName(name).split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return cleanName(name).substring(0, 2).toUpperCase();
   };
 
-  const formatTime = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const isToday = date.toDateString() === today.toDateString();
-    const time = date.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    if (isToday) return `Today ${time}`;
-    return `${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} ${time}`;
+  const fmtTime = (ts: number | null): string => {
+    if (!ts) return '—';
+    return new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const fmtDate = (dateStr: string): string => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
   };
 
   const avatarColors = ['#3A2B22', '#2E2A3A', '#22302A', '#322A22'];
   const textColors = ['#C8703C', '#A88BC8', '#5DAE8B', '#D89B5C'];
 
-  const pendingCount = logs.filter(l => !l.synced).length;
+  // ===== PERSON DETAIL VIEW =====
+  if (selected) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setSelected(null)}>
+            <Text style={styles.back}>‹ Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>{cleanName(selected)}</Text>
+          <View style={{ width: 50 }} />
+        </View>
 
-  const renderItem = ({ item, index }: { item: LogEntry; index: number }) => (
-    <View style={styles.card}>
-      <View style={[styles.avatar, { backgroundColor: avatarColors[index % 4] }]}>
-        <Text style={[styles.avatarText, { color: textColors[index % 4] }]}>
-          {getInitials(item.name)}
-        </Text>
-      </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardName}>{item.name.replace(/\(.*\)/, '').trim()}</Text>
-        <Text style={styles.cardTime}>{formatTime(item.timestamp)}</Text>
-      </View>
-      <View style={[styles.pill, item.synced ? styles.syncedPill : styles.pendingPill]}>
-        <Text style={[styles.pillText, item.synced ? styles.syncedText : styles.pendingText]}>
-          {item.synced ? 'synced' : 'pending'}
-        </Text>
-      </View>
-    </View>
-  );
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryNumber}>{records.length}</Text>
+          <Text style={styles.summaryLabel}>days present</Text>
+        </View>
 
+        {records.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No attendance yet</Text>
+            <Text style={styles.emptySub}>This person hasn't checked in</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={records}
+            keyExtractor={(item) => item.date}
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <View style={styles.dayCard}>
+                <View style={styles.dayLeft}>
+                  <View style={styles.dayDot} />
+                  <Text style={styles.dayDate}>{fmtDate(item.date)}</Text>
+                </View>
+                <View style={styles.timesRow}>
+                  <View style={styles.timeBox}>
+                    <Text style={styles.timeLabel}>IN</Text>
+                    <Text style={styles.timeValue}>{fmtTime(item.check_in)}</Text>
+                  </View>
+                  <View style={styles.timeBox}>
+                    <Text style={styles.timeLabel}>OUT</Text>
+                    <Text style={styles.timeValue}>{fmtTime(item.check_out)}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          />
+        )}
+      </View>
+    );
+  }
+
+  // ===== PEOPLE LIST VIEW =====
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack}>
           <Text style={styles.back}>‹ Back</Text>
@@ -114,31 +150,44 @@ export default function AttendanceLogScreen({ onBack }: Props) {
         )}
       </View>
 
-      {/* Sync button */}
       <TouchableOpacity
         style={styles.syncButton}
         onPress={handleSync}
         disabled={syncing || pendingCount === 0}>
         <Text style={styles.syncText}>
-          {syncing ? 'Syncing...' : '☁  Sync to server'}
+          {syncing ? 'Syncing...' : 'Sync to server'}
         </Text>
       </TouchableOpacity>
 
-      {logs.length === 0 ? (
+      {people.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>▤</Text>
-          <Text style={styles.emptyText}>No records yet</Text>
-          <Text style={styles.emptySub}>Mark attendance to create the first record</Text>
+          <Text style={styles.emptyText}>No one enrolled yet</Text>
+          <Text style={styles.emptySub}>Enroll a worker to begin</Text>
         </View>
       ) : (
         <FlatList
-          data={logs}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
+          data={people}
+          keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C8703C" />
-          }
+          renderItem={({ item, index }) => (
+            <TouchableOpacity
+              style={styles.personCard}
+              onPress={() => loadRecords(item.userId)}
+              activeOpacity={0.8}>
+              <View style={[styles.avatar, { backgroundColor: avatarColors[index % 4] }]}>
+                <Text style={[styles.avatarText, { color: textColors[index % 4] }]}>
+                  {getInitials(item.userId)}
+                </Text>
+              </View>
+              <View style={styles.personContent}>
+                <Text style={styles.personName}>{cleanName(item.userId)}</Text>
+                <Text style={styles.personDays}>
+                  {item.dayCount} day{item.dayCount !== 1 ? 's' : ''} present
+                </Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          )}
         />
       )}
     </View>
@@ -146,11 +195,7 @@ export default function AttendanceLogScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1C1A19',
-    paddingTop: 55,
-  },
+  container: { flex: 1, backgroundColor: '#1C1A19', paddingTop: 55 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -158,27 +203,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     marginBottom: 16,
   },
-  back: {
-    color: '#C8703C',
-    fontSize: 16,
-    width: 50,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F7F4F0',
-  },
+  back: { color: '#C8703C', fontSize: 16, width: 50 },
+  title: { fontSize: 18, fontWeight: '600', color: '#F7F4F0' },
   headerBadge: {
     backgroundColor: '#C8703C',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  headerBadgeText: {
-    fontSize: 11,
-    color: '#412402',
-    fontWeight: '600',
-  },
+  headerBadgeText: { fontSize: 11, color: '#412402', fontWeight: '600' },
   syncButton: {
     backgroundColor: '#262321',
     borderWidth: 1,
@@ -189,88 +222,60 @@ const styles = StyleSheet.create({
     marginHorizontal: 22,
     marginBottom: 16,
   },
-  syncText: {
-    color: '#C8703C',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  list: {
-    paddingHorizontal: 22,
-    paddingBottom: 22,
-  },
-  card: {
+  syncText: { color: '#C8703C', fontSize: 14, fontWeight: '600' },
+  list: { paddingHorizontal: 22, paddingBottom: 22 },
+  personCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#262321',
     borderRadius: 14,
-    padding: 12,
+    padding: 14,
     marginBottom: 10,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '600',
+  avatarText: { fontSize: 14, fontWeight: '600' },
+  personContent: { flex: 1, marginLeft: 14 },
+  personName: { fontSize: 15, fontWeight: '500', color: '#F7F4F0' },
+  personDays: { fontSize: 12, color: '#8B847C', marginTop: 2 },
+  chevron: { fontSize: 24, color: '#5A544C' },
+  summaryCard: {
+    backgroundColor: '#262321',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginHorizontal: 22,
+    marginBottom: 16,
   },
-  cardContent: {
-    flex: 1,
-    marginLeft: 12,
+  summaryNumber: { fontSize: 34, fontWeight: '700', color: '#C8703C' },
+  summaryLabel: { fontSize: 13, color: '#8B847C', marginTop: 2 },
+  dayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#262321',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
   },
-  cardName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#F7F4F0',
-  },
-  cardTime: {
-    fontSize: 12,
-    color: '#6B645C',
-    marginTop: 2,
-  },
-  pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  pendingPill: {
-    backgroundColor: '#C8703C',
-  },
-  syncedPill: {
+  dayLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dayDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#5DAE8B',
   },
-  pillText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  pendingText: {
-    color: '#412402',
-  },
-  syncedText: {
-    color: '#15201A',
-  },
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyIcon: {
-    fontSize: 50,
-    color: '#3A352F',
-  },
-  emptyText: {
-    color: '#F7F4F0',
-    fontSize: 17,
-    fontWeight: '500',
-  },
-  emptySub: {
-    color: '#6B645C',
-    fontSize: 13,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
+  dayDate: { fontSize: 14, fontWeight: '500', color: '#F7F4F0' },
+  timesRow: { flexDirection: 'row', gap: 16 },
+  timeBox: { alignItems: 'center' },
+  timeLabel: { fontSize: 9, color: '#6B645C', letterSpacing: 1 },
+  timeValue: { fontSize: 13, color: '#C8B8A8', marginTop: 2 },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  emptyText: { color: '#F7F4F0', fontSize: 17, fontWeight: '500' },
+  emptySub: { color: '#6B645C', fontSize: 13, textAlign: 'center' },
 });
