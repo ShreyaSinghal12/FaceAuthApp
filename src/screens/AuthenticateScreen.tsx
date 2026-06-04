@@ -75,6 +75,7 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
       let bestUser: string | null = null;
       for (const s of stored) {
         const score = FaceRecognizer.cosineSimilarity(embedding, s.embedding);
+        console.log('SCORE vs', s.userId, '=', score.toFixed(3));
         if (score > bestScore) {
           bestScore = score;
           bestUser = s.userId;

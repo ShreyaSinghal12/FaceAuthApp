@@ -91,8 +91,8 @@ export default function App() {
   if (screen === 'authenticate') {
     return (
       <AuthenticateScreen
-        onSuccess={(name) => {
-          setLastResult('Welcome, ' + name + '!');
+        onSuccess={(message) => {
+          setLastResult(message);
           setScreen('home');
         }}
         onCancel={() => setScreen('home')}
