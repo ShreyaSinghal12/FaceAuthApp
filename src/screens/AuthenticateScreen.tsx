@@ -91,7 +91,7 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
       const confidencePercent = Math.round(bestScore * 100 * 10) / 10;
       setConfidence(confidencePercent);
 
-      if (bestUser && bestScore >= 0.4) {
+      if (bestUser && bestScore >= 0.75) {
         setMatchedName(bestUser);
         setStatus('');
         // Check today's attendance status
