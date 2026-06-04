@@ -165,6 +165,77 @@ export const DatabaseService = {
     }
   },
 
+  // Explicit check-in or check-out based on requested mode
+  async markAttendanceMode(
+    userId: string,
+    mode: 'checkin' | 'checkout'
+  ): Promise<'checkin' | 'checkout' | 'already_in' | 'not_in'> {
+    const database = await getDb();
+    const now = Date.now();
+    const today = dateKey(now);
+
+    const [existing] = await database.executeSql(
+      'SELECT * FROM daily_attendance WHERE user_id = ? AND date = ?',
+      [userId, today]
+    );
+
+    if (mode === 'checkin') {
+      if (existing.rows.length > 0) {
+        return 'already_in'; // already checked in today
+      }
+      await database.executeSql(
+        `INSERT INTO daily_attendance (user_id, date, check_in, synced)
+         VALUES (?, ?, ?, 0)`,
+        [userId, today, now]
+      );
+      return 'checkin';
+    } else {
+      if (existing.rows.length === 0) {
+        return 'not_in'; // can't check out without checking in
+      }
+      await database.executeSql(
+        `UPDATE daily_attendance SET check_out = ?, synced = 0
+         WHERE user_id = ? AND date = ?`,
+        [now, userId, today]
+      );
+      return 'checkout';
+    }
+  },
+
+  // Get one day's record for a user (for the dashboard status)
+  async getTodayRecord(userId: string): Promise<any | null> {
+    const database = await getDb();
+    const today = dateKey(Date.now());
+    const [results] = await database.executeSql(
+      'SELECT * FROM daily_attendance WHERE user_id = ? AND date = ?',
+      [userId, today]
+    );
+    return results.rows.length > 0 ? results.rows.item(0) : null;
+  },
+
+  // Get all attendance dates for a user in a given month (year, month 0-11)
+  // Returns a map of "YYYY-MM-DD" -> { check_in, check_out }
+  async getMonthAttendance(
+    userId: string,
+    year: number,
+    month: number
+  ): Promise<Record<string, { check_in: number; check_out: number | null }>> {
+    const database = await getDb();
+    const mm = String(month + 1).padStart(2, '0');
+    const prefix = `${year}-${mm}-`;
+    const [results] = await database.executeSql(
+      `SELECT date, check_in, check_out FROM daily_attendance
+       WHERE user_id = ? AND date LIKE ?`,
+      [userId, prefix + '%']
+    );
+    const map: Record<string, { check_in: number; check_out: number | null }> = {};
+    for (let i = 0; i < results.rows.length; i++) {
+      const row = results.rows.item(i);
+      map[row.date] = { check_in: row.check_in, check_out: row.check_out };
+    }
+    return map;
+  },
+
   async getAttendanceForUser(userId: string): Promise<any[]> {
     const database = await getDb();
     const [results] = await database.executeSql(

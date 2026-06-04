@@ -10,19 +10,25 @@ import HomeScreen from './src/screens/HomeScreen';
 import LivenessScreen from './src/screens/LivenessScreen';
 import { DatabaseService } from './src/services/DatabaseService';
 import { SyncService } from './src/services/SyncService';
-import AttendanceLogScreen from './src/screens/AttendanceLogScreen';
 import EnrollScreen from './src/screens/EnrollScreen';
 import AuthenticateScreen from './src/screens/AuthenticateScreen';
+import AttendanceDashboard from './src/screens/AttendanceDashboard';
 import SplashScreen from './src/screens/SplashScreen';
 
-type Screen = 'splash' | 'home' | 'liveness_enroll' | 'liveness_auth' | 'enroll' | 'authenticate' | 'logs';
+type Screen =
+  | 'splash' | 'home'
+  | 'liveness_enroll' | 'liveness_auth'
+  | 'enroll' | 'authenticate' | 'dashboard';
 
 export default function App() {
   const [modelsReady, setModelsReady] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [screen, setScreen] = useState<Screen>('splash');
-  const [lastResult, setLastResult] = useState<string | null>(null);
+
+  const [attendanceMode, setAttendanceMode] = useState<'checkin' | 'checkout'>('checkin');
+  const [dashboardUser, setDashboardUser] = useState<string>('');
+  const [dashboardResult, setDashboardResult] = useState<'checkin' | 'checkout' | 'already_in' | 'not_in' | null>(null);
 
   const [pendingCount, setPendingCount] = useState(0);
   const [enrolledCount, setEnrolledCount] = useState(0);
@@ -30,18 +36,14 @@ export default function App() {
 
   const refreshCounts = useCallback(async () => {
     try {
-      const enrolled = await DatabaseService.getEnrolledCount();
-      const pending = await DatabaseService.getPendingCount();
-      const today = await DatabaseService.getTodayCount();
-      setEnrolledCount(enrolled);
-      setPendingCount(pending);
-      setTodayCount(today);
+      setEnrolledCount(await DatabaseService.getEnrolledCount());
+      setPendingCount(await DatabaseService.getPendingCount());
+      setTodayCount(await DatabaseService.getTodayCount());
     } catch (e) {
       console.log('Count fetch error:', e);
     }
   }, []);
 
-  // Load models in background while splash plays
   useEffect(() => {
     const init = async () => {
       try {
@@ -52,13 +54,12 @@ export default function App() {
         setModelsReady(true);
       } catch (err: any) {
         setError(err.message);
-        setModelsReady(true); // still finish splash even on error
+        setModelsReady(true);
       }
     };
     init();
   }, []);
 
-  // Go to home only when BOTH splash animation done AND models loaded
   const handleSplashFinish = () => {
     setSplashDone(true);
     if (modelsReady) setScreen('home');
@@ -105,10 +106,7 @@ export default function App() {
   if (screen === 'enroll') {
     return (
       <EnrollScreen
-        onSuccess={(name) => {
-          setLastResult(`✓ ${name} enrolled successfully`);
-          setScreen('home');
-        }}
+        onSuccess={() => setScreen('home')}
         onCancel={() => setScreen('home')}
       />
     );
@@ -117,33 +115,37 @@ export default function App() {
   if (screen === 'authenticate') {
     return (
       <AuthenticateScreen
-        onSuccess={(msg) => {
-          setLastResult(msg); // msg already contains "Checked IN" or "Checked OUT"
-          setScreen('home');
+        mode={attendanceMode}
+        onMatched={(userId, result) => {
+          setDashboardUser(userId);
+          setDashboardResult(result);
+          setScreen('dashboard');
         }}
         onCancel={() => setScreen('home')}
       />
     );
   }
 
-  if (screen === 'logs') {
-    return <AttendanceLogScreen onBack={() => setScreen('home')} />;
+  if (screen === 'dashboard') {
+    return (
+      <AttendanceDashboard
+        userId={dashboardUser}
+        mode={attendanceMode}
+        justMarked={dashboardResult}
+        onDone={() => setScreen('home')}
+      />
+    );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {lastResult && (
-        <View style={[
-          styles.resultBanner,
-          lastResult.includes('OUT') ? styles.bannerOut : styles.bannerIn
-        ]}>
-          <Text style={styles.resultText}>{lastResult}</Text>
-        </View>
-      )}
       <HomeScreen
-        onEnroll={() => { setLastResult(null); setScreen('liveness_enroll'); }}
-        onAuthenticate={() => { setLastResult(null); setScreen('liveness_auth'); }}
-        onViewLogs={() => setScreen('logs')}
+        onEnroll={() => setScreen('liveness_enroll')}
+        onAttendance={(mode) => {
+          setAttendanceMode(mode);
+          setScreen('liveness_auth');
+        }}
+        onViewLogs={() => { }}
         pendingCount={pendingCount}
         enrolledCount={enrolledCount}
         todayCount={todayCount}
@@ -153,19 +155,12 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
+  container: { flex: 1, backgroundColor: '#1C1A19' },
   loading: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#1C1A19',
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorText: { color: '#FF6B6B', fontSize: 14, textAlign: 'center', padding: 20 },
-  resultBanner: {
-    padding: 14,
-    alignItems: 'center',
-  },
-  bannerIn: { backgroundColor: '#0F3D2E' },
-  bannerOut: { backgroundColor: '#2A1A0E' },
-  resultText: { color: '#F7F4F0', fontSize: 14, fontWeight: '500' },
 });
