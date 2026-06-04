@@ -14,17 +14,20 @@ import { FaceRecognizer } from '../models/FaceRecognizer';
 import { DatabaseService } from '../services/DatabaseService';
 
 interface Props {
-  onSuccess: (name: string) => void;
+  mode: 'checkin' | 'checkout';
+  onMatched: (
+    userId: string,
+    result: 'checkin' | 'checkout' | 'already_in' | 'not_in'
+  ) => void;
   onCancel: () => void;
 }
 
-export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
+export default function AuthenticateScreen({ mode, onMatched, onCancel }: Props) {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [status, setStatus] = useState('Tap to scan your face');
   const [processing, setProcessing] = useState(false);
   const [matchedName, setMatchedName] = useState<string | null>(null);
   const [confidence, setConfidence] = useState<number>(0);
-  const [todayStatus, setTodayStatus] = useState<'none' | 'in' | 'out'>('none');
 
   const captureAndMatch = async () => {
     if (Platform.OS === 'android') {
@@ -56,12 +59,8 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
       const base64 = image.base64;
       if (!base64) throw new Error('No image data');
 
-      const startTime = Date.now();
-
       const embedding = await FaceRecognizer.getEmbedding(base64);
       if (!embedding) throw new Error('Could not extract face features');
-
-      const embeddingTime = Date.now() - startTime;
 
       const stored = await DatabaseService.getAllEmbeddings();
       if (stored.length === 0) {
@@ -70,7 +69,6 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
         return;
       }
 
-      const matchStart = Date.now();
       let bestScore = 0;
       let bestUser: string | null = null;
       for (const s of stored) {
@@ -81,13 +79,6 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
           bestUser = s.userId;
         }
       }
-      const matchTime = Date.now() - matchStart;
-      const totalTime = Date.now() - startTime;
-
-      console.log('BENCHMARK - Embedding:', embeddingTime, 'ms');
-      console.log('BENCHMARK - Matching:', matchTime, 'ms');
-      console.log('BENCHMARK - Total:', totalTime, 'ms');
-      console.log('BENCHMARK - Enrolled users:', stored.length);
 
       const confidencePercent = Math.round(bestScore * 100 * 10) / 10;
       setConfidence(confidencePercent);
@@ -95,20 +86,6 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
       if (bestUser && bestScore >= 0.4) {
         setMatchedName(bestUser);
         setStatus('');
-        // Check today's attendance status
-        const records = await DatabaseService.getAttendanceForUser(bestUser);
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        console.log('TODAY KEY:', today);
-        console.log('RECORDS:', JSON.stringify(records));
-        const todayRec = records.find((r: any) => r.date === today);
-        if (!todayRec) {
-          setTodayStatus('none');
-        } else if (todayRec.check_out) {
-          setTodayStatus('out');
-        } else {
-          setTodayStatus('in');
-        }
       } else {
         setStatus('Face not recognized');
         setMatchedName(null);
@@ -120,15 +97,10 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
     }
   };
 
-  const confirmAttendance = async () => {
-    if (matchedName) {
-      const result = await DatabaseService.markAttendance(matchedName);
-      if (result === 'checkin') {
-        onSuccess(`Welcome, ${matchedName} — Checked IN`);
-      } else {
-        onSuccess(`Goodbye, ${matchedName} — Checked OUT`);
-      }
-    }
+  const confirm = async () => {
+    if (!matchedName) return;
+    const result = await DatabaseService.markAttendanceMode(matchedName, mode);
+    onMatched(matchedName, result);
   };
 
   return (
@@ -137,7 +109,7 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
         <TouchableOpacity onPress={onCancel}>
           <Text style={styles.back}>‹ Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Mark attendance</Text>
+        <Text style={styles.title}>{mode === 'checkin' ? 'Check In' : 'Check Out'}</Text>
         <View style={{ width: 50 }} />
       </View>
 
@@ -161,16 +133,11 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
 
       {matchedName && (
         <View style={styles.matchCard}>
-          <Text style={styles.matchName}>{matchedName}</Text>
+          <Text style={styles.matchName}>{matchedName.replace(/\(.*\)/, '').trim()}</Text>
           <Text style={styles.matchConfidence}>Confidence {confidence}%</Text>
           <View style={styles.confidenceTrack}>
             <View style={[styles.confidenceFill, { width: `${Math.min(confidence, 100)}%` }]} />
           </View>
-          <Text style={styles.actionHint}>
-            {todayStatus === 'none' && 'Tap to check IN'}
-            {todayStatus === 'in' && 'Tap to check OUT'}
-            {todayStatus === 'out' && 'Already checked out today'}
-          </Text>
         </View>
       )}
 
@@ -181,17 +148,13 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
           <ActivityIndicator color="#5DAE8B" />
         </View>
       ) : matchedName ? (
-        todayStatus === 'out' ? (
-          <TouchableOpacity style={styles.scanButton} onPress={onCancel}>
-            <Text style={styles.scanText}>Done</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.confirmButton} onPress={confirmAttendance}>
-            <Text style={styles.confirmText}>
-              {todayStatus === 'none' ? 'Check IN' : 'Check OUT'}
-            </Text>
-          </TouchableOpacity>
-        )
+        <TouchableOpacity
+          style={[styles.confirmButton, mode === 'checkout' && styles.checkoutButton]}
+          onPress={confirm}>
+          <Text style={[styles.confirmText, mode === 'checkout' && styles.checkoutText]}>
+            Confirm {mode === 'checkin' ? 'Check In' : 'Check Out'}
+          </Text>
+        </TouchableOpacity>
       ) : (
         <TouchableOpacity style={styles.scanButton} onPress={captureAndMatch}>
           <Text style={styles.scanText}>Scan face</Text>
@@ -202,12 +165,7 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1C1A19',
-    padding: 22,
-    paddingTop: 55,
-  },
+  container: { flex: 1, backgroundColor: '#1C1A19', padding: 22, paddingTop: 55 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -272,12 +230,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   confidenceFill: { height: '100%', backgroundColor: '#5DAE8B', borderRadius: 3 },
-  actionHint: {
-    fontSize: 13,
-    color: '#C8703C',
-    marginTop: 10,
-    fontWeight: '500',
-  },
   status: { color: '#C8703C', fontSize: 14, textAlign: 'center', marginVertical: 10 },
   scanButton: {
     backgroundColor: '#C8703C',
@@ -292,6 +244,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
+  checkoutButton: { backgroundColor: '#D89B5C' },
   confirmText: { color: '#15201A', fontSize: 16, fontWeight: '600' },
+  checkoutText: { color: '#2A1A0E' },
   processingBox: { alignItems: 'center', paddingVertical: 16 },
 });

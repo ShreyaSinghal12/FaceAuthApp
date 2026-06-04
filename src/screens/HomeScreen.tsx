@@ -8,8 +8,7 @@ import {
 
 interface Props {
   onEnroll: () => void;
-  onAuthenticate: () => void;
-  onViewLogs: () => void;
+  onAttendance: (mode: 'checkin' | 'checkout') => void;
   pendingCount?: number;
   enrolledCount?: number;
   todayCount?: number;
@@ -17,8 +16,7 @@ interface Props {
 
 export default function HomeScreen({
   onEnroll,
-  onAuthenticate,
-  onViewLogs,
+  onAttendance,
   pendingCount = 0,
   enrolledCount = 0,
   todayCount = 0,
@@ -26,7 +24,6 @@ export default function HomeScreen({
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        {/* Header with logo badge */}
         <View style={styles.header}>
           <View>
             <Text style={styles.logo}>FaceAuth</Text>
@@ -37,7 +34,6 @@ export default function HomeScreen({
           </View>
         </View>
 
-        {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{enrolledCount}</Text>
@@ -53,9 +49,34 @@ export default function HomeScreen({
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>QUICK ACTIONS</Text>
+        <Text style={styles.sectionLabel}>ATTENDANCE</Text>
 
-        {/* Large Enroll card */}
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={[styles.attendanceCard, styles.checkInCard]}
+            onPress={() => onAttendance('checkin')}
+            activeOpacity={0.8}>
+            <View style={[styles.iconCircle, styles.greenBg]}>
+              <Text style={styles.iconDark}>↓</Text>
+            </View>
+            <Text style={styles.attendanceTitle}>Check In</Text>
+            <Text style={styles.attendanceSub}>Start of day</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.attendanceCard, styles.checkOutCard]}
+            onPress={() => onAttendance('checkout')}
+            activeOpacity={0.8}>
+            <View style={[styles.iconCircle, styles.amberBg]}>
+              <Text style={styles.iconDark}>↑</Text>
+            </View>
+            <Text style={styles.attendanceTitle}>Check Out</Text>
+            <Text style={styles.attendanceSub}>End of day</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.sectionLabel}>MANAGE</Text>
+
         <TouchableOpacity
           style={styles.featureCard}
           onPress={onEnroll}
@@ -71,34 +92,8 @@ export default function HomeScreen({
             <Text style={styles.chevron}>›</Text>
           </View>
         </TouchableOpacity>
-
-        {/* Two small cards side by side */}
-        <View style={styles.row}>
-          <TouchableOpacity
-            style={styles.smallCard}
-            onPress={onAuthenticate}
-            activeOpacity={0.8}>
-            <View style={[styles.iconCircle, styles.greenBg]}>
-              <Text style={styles.iconWhite}>✓</Text>
-            </View>
-            <Text style={styles.smallCardTitle}>Attendance</Text>
-            <Text style={styles.smallCardSub}>Scan to check in</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.smallCard}
-            onPress={onViewLogs}
-            activeOpacity={0.8}>
-            <View style={[styles.iconCircle, styles.purpleBg]}>
-              <Text style={styles.iconWhite}>▤</Text>
-            </View>
-            <Text style={styles.smallCardTitle}>Records</Text>
-            <Text style={styles.smallCardSub}>Logs & sync</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* Bottom status bar */}
       <View style={styles.statusBar}>
         <View style={styles.statusDot} />
         <Text style={styles.statusText}>
@@ -110,31 +105,16 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1C1A19',
-  },
-  content: {
-    flex: 1,
-    padding: 22,
-    paddingTop: 60,
-  },
+  container: { flex: 1, backgroundColor: '#1C1A19' },
+  content: { flex: 1, padding: 22, paddingTop: 60 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 28,
   },
-  logo: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#F7F4F0',
-  },
-  tagline: {
-    fontSize: 13,
-    color: '#8B847C',
-    marginTop: 3,
-  },
+  logo: { fontSize: 26, fontWeight: '700', color: '#F7F4F0' },
+  tagline: { fontSize: 13, color: '#8B847C', marginTop: 3 },
   badge: {
     width: 44,
     height: 44,
@@ -144,15 +124,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeIcon: {
-    color: '#C8703C',
-    fontSize: 20,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 40,
-  },
+  badgeIcon: { color: '#C8703C', fontSize: 20 },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
   statBox: {
     flex: 1,
     backgroundColor: '#262321',
@@ -160,32 +133,25 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
-  statNumber: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#C8703C',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#8B847C',
-    marginTop: 4,
-  },
+  statNumber: { fontSize: 26, fontWeight: '700', color: '#C8703C' },
+  statLabel: { fontSize: 12, color: '#8B847C', marginTop: 4 },
   sectionLabel: {
     fontSize: 11,
     color: '#6B645C',
     letterSpacing: 1.5,
     marginBottom: 14,
   },
-  featureCard: {
-    backgroundColor: '#262321',
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 14,
+  row: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  attendanceCard: { flex: 1, borderRadius: 18, padding: 18, borderWidth: 1 },
+  checkInCard: { backgroundColor: '#1E2620', borderColor: '#2C4438' },
+  checkOutCard: { backgroundColor: '#2A1A0E', borderColor: '#4A3220' },
+  attendanceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F7F4F0',
+    marginTop: 12,
   },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  attendanceSub: { fontSize: 12, color: '#8B847C', marginTop: 3 },
   iconCircle: {
     width: 48,
     height: 48,
@@ -193,53 +159,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  coralBg: { backgroundColor: '#C8703C' },
   greenBg: { backgroundColor: '#5DAE8B' },
-  purpleBg: { backgroundColor: '#A88BC8' },
-  iconWhite: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '600',
-  },
-  featureText: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#F7F4F0',
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: '#8B847C',
-    marginTop: 3,
-  },
-  chevron: {
-    fontSize: 26,
-    color: '#5A544C',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  smallCard: {
-    flex: 1,
+  amberBg: { backgroundColor: '#D89B5C' },
+  coralBg: { backgroundColor: '#C8703C' },
+  iconWhite: { color: '#fff', fontSize: 22, fontWeight: '600' },
+  iconDark: { color: '#15201A', fontSize: 24, fontWeight: '700' },
+  featureCard: {
     backgroundColor: '#262321',
     borderRadius: 18,
     padding: 18,
   },
-  smallCardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F7F4F0',
-    marginTop: 12,
-  },
-  smallCardSub: {
-    fontSize: 12,
-    color: '#8B847C',
-    marginTop: 3,
-  },
+  featureRow: { flexDirection: 'row', alignItems: 'center' },
+  featureText: { flex: 1, marginLeft: 16 },
+  cardTitle: { fontSize: 17, fontWeight: '600', color: '#F7F4F0' },
+  cardSubtitle: { fontSize: 13, color: '#8B847C', marginTop: 3 },
+  chevron: { fontSize: 26, color: '#5A544C' },
   statusBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,8 +190,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#C8703C',
     marginRight: 8,
   },
-  statusText: {
-    fontSize: 13,
-    color: '#8B847C',
-  },
+  statusText: { fontSize: 13, color: '#8B847C' },
 });
