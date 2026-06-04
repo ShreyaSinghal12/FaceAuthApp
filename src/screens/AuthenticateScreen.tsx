@@ -165,7 +165,7 @@ export default function AuthenticateScreen({ mode, onMatched, onCancel }: Props)
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1A19', padding: 22, paddingTop: 55 },
+  container: { flex: 1, backgroundColor: '#080808', padding: 22, paddingTop: 55 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   back: { color: '#C8703C', fontSize: 16, width: 50 },
   title: { fontSize: 18, fontWeight: '600', color: '#F7F4F0' },
   banner: {
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderWidth: 1,
     borderColor: '#3A352F',
     borderRadius: 14,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   bannerTitle: { fontSize: 14, color: '#C8703C', fontWeight: '600' },
   bannerSub: { fontSize: 12, color: '#8B847C', marginTop: 2 },
   faceBox: {
-    backgroundColor: '#161413',
+    backgroundColor: '#050505',
     borderRadius: 18,
     padding: 22,
     alignItems: 'center',
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   confidenceTrack: {
     width: '100%',
     height: 6,
-    backgroundColor: '#161413',
+    backgroundColor: '#050505',
     borderRadius: 3,
     overflow: 'hidden',
   },

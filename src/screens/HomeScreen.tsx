@@ -24,16 +24,19 @@ export default function HomeScreen({
   return (
     <View style={styles.container}>
       <View style={styles.content}>
+
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.logo}>FaceAuth</Text>
             <Text style={styles.tagline}>Offline face recognition</Text>
           </View>
           <View style={styles.badge}>
-            <Text style={styles.badgeIcon}>◉</Text>
+            <Text style={styles.badgeIcon}>⬡</Text>
           </View>
         </View>
 
+        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>{enrolledCount}</Text>
@@ -44,20 +47,21 @@ export default function HomeScreen({
             <Text style={styles.statLabel}>Today</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{pendingCount}</Text>
+            <Text style={[styles.statNumber, styles.statAmber]}>{pendingCount}</Text>
             <Text style={styles.statLabel}>Pending</Text>
           </View>
         </View>
 
         <Text style={styles.sectionLabel}>ATTENDANCE</Text>
 
+        {/* Check In / Check Out */}
         <View style={styles.row}>
           <TouchableOpacity
             style={[styles.attendanceCard, styles.checkInCard]}
             onPress={() => onAttendance('checkin')}
             activeOpacity={0.8}>
-            <View style={[styles.iconCircle, styles.greenBg]}>
-              <Text style={styles.iconDark}>↓</Text>
+            <View style={[styles.iconCircle, styles.greenIconBg]}>
+              <Text style={styles.iconGreen}>↑</Text>
             </View>
             <Text style={styles.attendanceTitle}>Check In</Text>
             <Text style={styles.attendanceSub}>Start of day</Text>
@@ -67,8 +71,8 @@ export default function HomeScreen({
             style={[styles.attendanceCard, styles.checkOutCard]}
             onPress={() => onAttendance('checkout')}
             activeOpacity={0.8}>
-            <View style={[styles.iconCircle, styles.amberBg]}>
-              <Text style={styles.iconDark}>↑</Text>
+            <View style={[styles.iconCircle, styles.amberIconBg]}>
+              <Text style={styles.iconAmber}>↓</Text>
             </View>
             <Text style={styles.attendanceTitle}>Check Out</Text>
             <Text style={styles.attendanceSub}>End of day</Text>
@@ -77,13 +81,14 @@ export default function HomeScreen({
 
         <Text style={styles.sectionLabel}>MANAGE</Text>
 
+        {/* Enroll */}
         <TouchableOpacity
           style={styles.featureCard}
           onPress={onEnroll}
           activeOpacity={0.8}>
           <View style={styles.featureRow}>
-            <View style={[styles.iconCircle, styles.coralBg]}>
-              <Text style={styles.iconWhite}>＋</Text>
+            <View style={[styles.iconCircle, styles.amberIconBg]}>
+              <Text style={styles.iconAmber}>+</Text>
             </View>
             <View style={styles.featureText}>
               <Text style={styles.cardTitle}>Enroll worker</Text>
@@ -92,8 +97,10 @@ export default function HomeScreen({
             <Text style={styles.chevron}>›</Text>
           </View>
         </TouchableOpacity>
+
       </View>
 
+      {/* Status bar */}
       <View style={styles.statusBar}>
         <View style={styles.statusDot} />
         <Text style={styles.statusText}>
@@ -105,90 +112,106 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1A19' },
+  container: { flex: 1, backgroundColor: '#080808' },
   content: { flex: 1, padding: 22, paddingTop: 60 },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: 24,
   },
-  logo: { fontSize: 26, fontWeight: '700', color: '#F7F4F0' },
-  tagline: { fontSize: 13, color: '#8B847C', marginTop: 3 },
+  logo: { fontSize: 26, fontWeight: '700', color: '#F0F0F0', letterSpacing: 0.5 },
+  tagline: { fontSize: 12, color: '#444444', marginTop: 3 },
   badge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: '#C8703C',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1D9E75',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeIcon: { color: '#C8703C', fontSize: 20 },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
+  badgeIcon: { color: '#1D9E75', fontSize: 16 },
+
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 28 },
   statBox: {
     flex: 1,
-    backgroundColor: '#262321',
-    borderRadius: 14,
-    paddingVertical: 16,
+    backgroundColor: '#0F0F0F',
+    borderWidth: 0.5,
+    borderColor: '#1A1A1A',
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  statNumber: { fontSize: 26, fontWeight: '700', color: '#C8703C' },
-  statLabel: { fontSize: 12, color: '#8B847C', marginTop: 4 },
+  statNumber: { fontSize: 24, fontWeight: '600', color: '#1D9E75' },
+  statAmber: { color: '#D89B5C' },
+  statLabel: { fontSize: 11, color: '#444444', marginTop: 4 },
+
   sectionLabel: {
-    fontSize: 11,
-    color: '#6B645C',
+    fontSize: 10,
+    color: '#333333',
     letterSpacing: 1.5,
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  row: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  attendanceCard: { flex: 1, borderRadius: 18, padding: 18, borderWidth: 1 },
-  checkInCard: { backgroundColor: '#1E2620', borderColor: '#2C4438' },
-  checkOutCard: { backgroundColor: '#2A1A0E', borderColor: '#4A3220' },
+
+  row: { flexDirection: 'row', gap: 10, marginBottom: 22 },
+  attendanceCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 0.5,
+  },
+  checkInCard: { backgroundColor: '#071410', borderColor: '#0F3D2E' },
+  checkOutCard: { backgroundColor: '#120A04', borderColor: '#3D2010' },
   attendanceTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F7F4F0',
-    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E0E0E0',
+    marginTop: 10,
   },
-  attendanceSub: { fontSize: 12, color: '#8B847C', marginTop: 3 },
+  attendanceSub: { fontSize: 11, color: '#444444', marginTop: 2 },
+
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  greenBg: { backgroundColor: '#5DAE8B' },
-  amberBg: { backgroundColor: '#D89B5C' },
-  coralBg: { backgroundColor: '#C8703C' },
-  iconWhite: { color: '#fff', fontSize: 22, fontWeight: '600' },
-  iconDark: { color: '#15201A', fontSize: 24, fontWeight: '700' },
+  greenIconBg: { backgroundColor: '#071410', borderWidth: 0.5, borderColor: '#1D9E75' },
+  amberIconBg: { backgroundColor: '#120A04', borderWidth: 0.5, borderColor: '#D89B5C' },
+  iconGreen: { color: '#1D9E75', fontSize: 18, fontWeight: '600' },
+  iconAmber: { color: '#D89B5C', fontSize: 18, fontWeight: '600' },
+
   featureCard: {
-    backgroundColor: '#262321',
-    borderRadius: 18,
-    padding: 18,
+    backgroundColor: '#0F0F0F',
+    borderWidth: 0.5,
+    borderColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 16,
   },
   featureRow: { flexDirection: 'row', alignItems: 'center' },
-  featureText: { flex: 1, marginLeft: 16 },
-  cardTitle: { fontSize: 17, fontWeight: '600', color: '#F7F4F0' },
-  cardSubtitle: { fontSize: 13, color: '#8B847C', marginTop: 3 },
-  chevron: { fontSize: 26, color: '#5A544C' },
+  featureText: { flex: 1, marginLeft: 14 },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: '#E0E0E0' },
+  cardSubtitle: { fontSize: 12, color: '#444444', marginTop: 2 },
+  chevron: { fontSize: 22, color: '#333333' },
+
   statusBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 22,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2724',
-    backgroundColor: '#161413',
+    paddingVertical: 14,
+    borderTopWidth: 0.5,
+    borderTopColor: '#111111',
+    backgroundColor: '#050505',
   },
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#C8703C',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#1D9E75',
     marginRight: 8,
   },
-  statusText: { fontSize: 13, color: '#8B847C' },
+  statusText: { fontSize: 12, color: '#333333' },
 });

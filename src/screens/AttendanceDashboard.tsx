@@ -225,7 +225,7 @@ export default function AttendanceDashboard({ userId, justMarked, onDone }: Prop
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1A19', paddingTop: 55 },
+  container: { flex: 1, backgroundColor: '#080808', paddingTop: 55 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -242,12 +242,12 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: 'center',
     marginBottom: 16,
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
   },
   resultText: { fontSize: 17, fontWeight: '700' },
   resultSub: { fontSize: 12, color: '#8B847C', marginTop: 3 },
   clockCard: {
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderRadius: 16,
     padding: 18,
     flexDirection: 'row',
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   statusPill: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1 },
   pillIn: { backgroundColor: '#1E2620', borderColor: '#2C4438' },
   pillDone: { backgroundColor: '#2A1A0E', borderColor: '#4A3220' },
-  pillNone: { backgroundColor: '#262321', borderColor: '#3A352F' },
+  pillNone: { backgroundColor: '#0F0F0F', borderColor: '#3A352F' },
   statusText: { fontSize: 13, fontWeight: '600' },
   inOutRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   inOutBox: { flex: 1, borderRadius: 14, padding: 16, borderWidth: 1 },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   outBox: { backgroundColor: '#2A1A0E', borderColor: '#4A3220' },
   inOutLabel: { fontSize: 10, color: '#8B847C', letterSpacing: 1 },
   inOutTime: { fontSize: 20, fontWeight: '700', marginTop: 4 },
-  calCard: { backgroundColor: '#262321', borderRadius: 16, padding: 16 },
+  calCard: { backgroundColor: '#0F0F0F', borderRadius: 16, padding: 16 },
   calHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

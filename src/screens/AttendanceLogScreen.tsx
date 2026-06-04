@@ -195,7 +195,7 @@ export default function AttendanceLogScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1A19', paddingTop: 55 },
+  container: { flex: 1, backgroundColor: '#080808', paddingTop: 55 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: { fontSize: 11, color: '#412402', fontWeight: '600' },
   syncButton: {
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderWidth: 1,
     borderColor: '#3A352F',
     borderRadius: 14,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   personCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   personDays: { fontSize: 12, color: '#8B847C', marginTop: 2 },
   chevron: { fontSize: 24, color: '#5A544C' },
   summaryCard: {
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,

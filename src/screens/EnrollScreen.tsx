@@ -179,7 +179,7 @@ export default function EnrollScreen({ onSuccess, onCancel }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1A19' },
+  container: { flex: 1, backgroundColor: '#080808' },
   scroll: { padding: 22, paddingTop: 55 },
   header: {
     flexDirection: 'row',
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   back: { color: '#C8703C', fontSize: 16, width: 50 },
   title: { fontSize: 18, fontWeight: '600', color: '#F7F4F0' },
   captureBox: {
-    backgroundColor: '#161413',
+    backgroundColor: '#050505',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#3A352F',
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   captureHint: { fontSize: 13, color: '#8B847C', marginTop: 12 },
   inputBox: {
-    backgroundColor: '#262321',
+    backgroundColor: '#0F0F0F',
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
