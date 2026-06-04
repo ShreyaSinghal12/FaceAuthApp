@@ -97,7 +97,10 @@ export default function AuthenticateScreen({ onSuccess, onCancel }: Props) {
         setStatus('');
         // Check today's attendance status
         const records = await DatabaseService.getAttendanceForUser(bestUser);
-        const today = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        console.log('TODAY KEY:', today);
+        console.log('RECORDS:', JSON.stringify(records));
         const todayRec = records.find((r: any) => r.date === today);
         if (!todayRec) {
           setTodayStatus('none');

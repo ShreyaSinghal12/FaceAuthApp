@@ -10,7 +10,6 @@ const getDb = async (): Promise<SQLite.SQLiteDatabase> => {
   return db;
 };
 
-// Returns YYYY-MM-DD for a timestamp
 const dateKey = (ts: number): string => {
   const d = new Date(ts);
   const y = d.getFullYear();
@@ -19,11 +18,21 @@ const dateKey = (ts: number): string => {
   return `${y}-${m}-${day}`;
 };
 
+// Cosine similarity between two embeddings
+const cosineSimilarity = (a: number[], b: number[]): number => {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+};
+
 export const DatabaseService = {
 
   async init(): Promise<void> {
     const database = await getDb();
-
     await database.executeSql(`
       CREATE TABLE IF NOT EXISTS face_templates (
         user_id TEXT PRIMARY KEY,
@@ -32,8 +41,6 @@ export const DatabaseService = {
         enrolled_at INTEGER NOT NULL
       );
     `);
-
-    // Daily attendance: one row per person per day
     await database.executeSql(`
       CREATE TABLE IF NOT EXISTS daily_attendance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,8 +52,26 @@ export const DatabaseService = {
         UNIQUE(user_id, date)
       );
     `);
-
     console.log('Database initialized');
+  },
+
+  // ─── NEW: Check if face already enrolled ──────────────────────────────────
+  // Returns the name of the matching person, or null if no match found
+  async findDuplicateFace(newEmbedding: number[]): Promise<string | null> {
+    const database = await getDb();
+    const [results] = await database.executeSql(
+      'SELECT user_id, name, embedding FROM face_templates'
+    );
+    for (let i = 0; i < results.rows.length; i++) {
+      const row = results.rows.item(i);
+      const existingEmbedding: number[] = JSON.parse(row.embedding);
+      const similarity = cosineSimilarity(newEmbedding, existingEmbedding);
+      // If similarity > 0.70, it's the same person
+      if (similarity > 0.70) {
+        return row.name; // return the name they were enrolled as
+      }
+    }
+    return null; // no duplicate found
   },
 
   async enrollUser(userId: string, embedding: number[]): Promise<void> {
@@ -73,7 +98,6 @@ export const DatabaseService = {
     return rows;
   },
 
-  // Get list of all enrolled people
   async getEnrolledUsers(): Promise<{ userId: string; enrolledAt: number }[]> {
     const database = await getDb();
     const [results] = await database.executeSql(
@@ -87,20 +111,44 @@ export const DatabaseService = {
     return rows;
   },
 
-  // Mark attendance: first scan of day = check-in, later scans update check-out
+  // ─── NEW: Total enrolled workers count ────────────────────────────────────
+  async getEnrolledCount(): Promise<number> {
+    const database = await getDb();
+    const [results] = await database.executeSql(
+      'SELECT COUNT(*) as count FROM face_templates'
+    );
+    return results.rows.item(0).count;
+  },
+
+  // ─── NEW: Pending sync count ───────────────────────────────────────────────
+  async getPendingCount(): Promise<number> {
+    const database = await getDb();
+    const [results] = await database.executeSql(
+      'SELECT COUNT(*) as count FROM daily_attendance WHERE synced = 0'
+    );
+    return results.rows.item(0).count;
+  },
+
+  // ─── NEW: Today's attendance count ────────────────────────────────────────
+  async getTodayCount(): Promise<number> {
+    const database = await getDb();
+    const today = dateKey(Date.now());
+    const [results] = await database.executeSql(
+      'SELECT COUNT(*) as count FROM daily_attendance WHERE date = ?',
+      [today]
+    );
+    return results.rows.item(0).count;
+  },
+
   async markAttendance(userId: string): Promise<'checkin' | 'checkout'> {
     const database = await getDb();
     const now = Date.now();
     const today = dateKey(now);
-
-    // Check if a record exists for today
     const [existing] = await database.executeSql(
       'SELECT * FROM daily_attendance WHERE user_id = ? AND date = ?',
       [userId, today]
     );
-
     if (existing.rows.length === 0) {
-      // First scan today = check-in
       await database.executeSql(
         `INSERT INTO daily_attendance (user_id, date, check_in, synced) 
          VALUES (?, ?, ?, 0)`,
@@ -108,7 +156,6 @@ export const DatabaseService = {
       );
       return 'checkin';
     } else {
-      // Subsequent scan = update check-out
       await database.executeSql(
         `UPDATE daily_attendance SET check_out = ?, synced = 0 
          WHERE user_id = ? AND date = ?`,
@@ -118,7 +165,6 @@ export const DatabaseService = {
     }
   },
 
-  // Get all attendance days for a specific person
   async getAttendanceForUser(userId: string): Promise<any[]> {
     const database = await getDb();
     const [results] = await database.executeSql(
@@ -132,7 +178,6 @@ export const DatabaseService = {
     return rows;
   },
 
-  // Count distinct attendance days for a person
   async getAttendanceCount(userId: string): Promise<number> {
     const database = await getDb();
     const [results] = await database.executeSql(
@@ -152,7 +197,9 @@ export const DatabaseService = {
 
   async syncAll(): Promise<void> {
     const database = await getDb();
-    await database.executeSql('UPDATE daily_attendance SET synced = 1 WHERE synced = 0');
+    await database.executeSql(
+      'UPDATE daily_attendance SET synced = 1 WHERE synced = 0'
+    );
     console.log('All records synced');
   },
 };
