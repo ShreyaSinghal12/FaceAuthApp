@@ -67,7 +67,7 @@ export const DatabaseService = {
       const existingEmbedding: number[] = JSON.parse(row.embedding);
       const similarity = cosineSimilarity(newEmbedding, existingEmbedding);
       // If similarity > 0.70, it's the same person
-      if (similarity > 0.70) {
+      if (similarity > 0.92) {
         return row.name; // return the name they were enrolled as
       }
     }
