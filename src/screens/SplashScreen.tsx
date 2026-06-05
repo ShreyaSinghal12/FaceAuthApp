@@ -87,7 +87,7 @@ export default function SplashScreen({ onFinish }: Props) {
 
       {/* App name */}
       <Animated.Text style={[styles.appName, { opacity: logoOpacity }]}>
-        FaceAuth
+        Scanix
       </Animated.Text>
 
       {/* Tagline */}

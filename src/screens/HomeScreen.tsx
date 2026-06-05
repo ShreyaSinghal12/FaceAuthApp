@@ -28,7 +28,7 @@ export default function HomeScreen({
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.logo}>FaceAuth</Text>
+            <Text style={styles.logo}>Scanix</Text>
             <Text style={styles.tagline}>Offline face recognition</Text>
           </View>
           <View style={styles.badge}>
