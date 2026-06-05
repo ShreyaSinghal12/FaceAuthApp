@@ -102,9 +102,6 @@ export default function SplashScreen({ onFinish }: Props) {
         <View style={styles.dot} />
       </Animated.View>
 
-      <Animated.Text style={[styles.loadingText, { opacity: dotsOpacity }]}>
-        Loading AI models...
-      </Animated.Text>
     </View>
   );
 }
